@@ -1,240 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AR WebXR Scene</title>
   <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-  <style>
-    body {
-      margin: 0;
-      background: transparent;
-    }
-
-    #ar-button {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 14px 28px;
-      background: rgba(255,255,255,0.15);
-      border: 2px solid white;
-      color: white;
-      font-size: 16px;
-      font-family: sans-serif;
-      border-radius: 50px;
-      cursor: pointer;
-      backdrop-filter: blur(8px);
-      z-index: 9999;
-    }
-
-    #info {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-family: sans-serif;
-      font-size: 14px;
-      z-index: 9999;
-      text-align: center;
-      max-width: 300px;
-    }
-  </style>
+  <script src="https://unpkg.com/aframe-ar-hit-test-component/dist/aframe-ar-hit-test-component.min.js"></script>
 </head>
-<body>
-
-  <div id="info">Presiona "Iniciar AR" y apunta tu cámara al suelo</div>
-  <button id="ar-button">Iniciar AR</button>
-
+<body style="margin: 0; background: transparent;">
   <a-scene
-    id="scene"
-    embedded
-    renderer="alpha: true; colorManagement: true; logarithmicDepthBuffer: true;"
-    webxr="requiredFeatures: hit-test,local-floor; optionalFeatures: dom-overlay; overlayElement: #ui-overlay"
-    vr-mode-ui="enabled: false"
+    webxr="requiredFeatures: hit-test, local-floor"
+    renderer="alpha: true; colorManagement: true"
+    vr-mode-ui="enabled: true"
+    ar-hit-test="target: #reticle"
     background="color: transparent"
   >
-    <!-- Reticle (indicador de superficie) -->
-    <a-entity
-      id="reticle"
-      geometry="primitive: ring; radiusInner: 0.04; radiusOuter: 0.06"
-      material="color: #00ff88; shader: flat; side: double"
+    <!-- cursor para colocar objetos -->
+    <a-entity id="reticle"
+      geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+      material="color: green"
       rotation="-90 0 0"
-      visible="false"
-    ></a-entity>
-
-    <!-- Objetos 3D (se colocan al tocar la superficie) -->
-    <a-entity id="objects">
-      <!-- vacío al inicio, se agregan al tocar -->
+      visible="false">
     </a-entity>
 
-    <!-- Luz ambiental -->
-    <a-light type="ambient" intensity="1"></a-light>
-    <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
-
-    <a-camera position="0 0 0"></a-camera>
+    <!-- objeto que aparecerá en el mundo real -->
+    <a-box      position="0 0 -1"  rotation="0 45 0" color="#4CC3D9"></a-box>
+    <a-sphere   position="2 1 -4"  radius="1"        color="#EF2D5E"></a-sphere>
+    <a-cylinder position="-2 1 -4" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
   </a-scene>
-
-  <div id="ui-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999;">
-    <div id="tap-hint" style="display:none; position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); color:white; padding:10px 20px; border-radius:20px; font-family:sans-serif; font-size:14px;">
-      Toca la superficie para colocar objetos
-    </div>
-  </div>
-
-  <script>
-    const scene = document.getElementById('scene');
-    const reticle = document.getElementById('reticle');
-    const objects = document.getElementById('objects');
-    const arButton = document.getElementById('ar-button');
-    const tapHint = document.getElementById('tap-hint');
-    const info = document.getElementById('info');
-
-    let xrSession = null;
-    let hitTestSource = null;
-    let hitTestSourceRequested = false;
-    let reticleVisible = false;
-    let currentHitMatrix = null;
-
-    // Colores para los objetos
-    const shapes = [
-      { type: 'box', color: '#4CC3D9', size: '0.15 0.15 0.15' },
-      { type: 'sphere', color: '#EF2D5E', radius: '0.1' },
-      { type: 'cylinder', color: '#FFC65D', radius: '0.08', height: '0.2' },
-    ];
-    let shapeIndex = 0;
-
-    // Iniciar AR
-    arButton.addEventListener('click', async () => {
-      if (!navigator.xr) {
-        alert('Tu navegador no soporta WebXR. Usa Chrome en Android.');
-        return;
-      }
-
-      const supported = await navigator.xr.isSessionSupported('immersive-ar');
-      if (!supported) {
-        alert('AR no está disponible en este dispositivo/navegador.');
-        return;
-      }
-
-      try {
-        xrSession = await navigator.xr.requestSession('immersive-ar', {
-          requiredFeatures: ['hit-test', 'local-floor'],
-          optionalFeatures: ['dom-overlay'],
-          domOverlay: { root: document.getElementById('ui-overlay') }
-        });
-
-        scene.xrSession = xrSession;
-        scene.renderer.xr.setReferenceSpaceType('local-floor');
-        await scene.renderer.xr.setSession(xrSession);
-
-        arButton.style.display = 'none';
-        info.style.display = 'none';
-        tapHint.style.display = 'block';
-
-        xrSession.addEventListener('end', () => {
-          arButton.style.display = 'block';
-          info.style.display = 'block';
-          tapHint.style.display = 'none';
-          hitTestSource = null;
-          hitTestSourceRequested = false;
-          reticle.setAttribute('visible', false);
-        });
-
-        scene.renderer.setAnimationLoop((time, frame) => {
-          onXRFrame(time, frame);
-        });
-
-      } catch (e) {
-        console.error('Error iniciando AR:', e);
-        alert('No se pudo iniciar AR: ' + e.message);
-      }
-    });
-
-    async function onXRFrame(time, frame) {
-      if (!frame) return;
-
-      const referenceSpace = scene.renderer.xr.getReferenceSpace();
-      const session = frame.session;
-
-      // Solicitar hit-test source
-      if (!hitTestSourceRequested) {
-        hitTestSourceRequested = true;
-        try {
-          const viewerSpace = await session.requestReferenceSpace('viewer');
-          hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-        } catch (e) {
-          console.error('Hit test error:', e);
-        }
-      }
-
-      if (hitTestSource) {
-        const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-        if (hitTestResults.length > 0) {
-          const hit = hitTestResults[0];
-          const pose = hit.getPose(referenceSpace);
-
-          if (pose) {
-            reticle.setAttribute('visible', true);
-            reticleVisible = true;
-
-            const m = pose.transform.matrix;
-            currentHitMatrix = m;
-
-            // Posicionar reticle
-            reticle.object3D.matrix.fromArray(m);
-            reticle.object3D.matrix.decompose(
-              reticle.object3D.position,
-              reticle.object3D.quaternion,
-              reticle.object3D.scale
-            );
-            reticle.object3D.matrixAutoUpdate = false;
-          }
-        } else {
-          reticle.setAttribute('visible', false);
-          reticleVisible = false;
-          currentHitMatrix = null;
-        }
-      }
-    }
-
-    // Colocar objeto al tocar pantalla
-    document.addEventListener('touchstart', (e) => {
-      if (!reticleVisible || !currentHitMatrix) return;
-
-      const shape = shapes[shapeIndex % shapes.length];
-      shapeIndex++;
-
-      const pos = reticle.object3D.position;
-
-      let entity;
-      if (shape.type === 'box') {
-        entity = document.createElement('a-box');
-        entity.setAttribute('width', '0.15');
-        entity.setAttribute('height', '0.15');
-        entity.setAttribute('depth', '0.15');
-      } else if (shape.type === 'sphere') {
-        entity = document.createElement('a-sphere');
-        entity.setAttribute('radius', '0.1');
-      } else {
-        entity = document.createElement('a-cylinder');
-        entity.setAttribute('radius', '0.08');
-        entity.setAttribute('height', '0.2');
-      }
-
-      entity.setAttribute('color', shape.color);
-      entity.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
-      entity.setAttribute('shadow', 'cast: true; receive: true');
-
-      // Animación de aparición
-      entity.setAttribute('animation__appear', 'property: scale; from: 0 0 0; to: 1 1 1; dur: 300; easing: easeOutBack');
-
-      objects.appendChild(entity);
-    });
-  </script>
 </body>
 </html>
