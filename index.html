@@ -1,15 +1,167 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-</head>
-<body>
-  <a-scene>
-    <a-box position="0 1 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
-    <a-sphere position="2 1 -4" radius="1" color="#EF2D5E"></a-sphere>
-    <a-cylinder position="-2 1 -4" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-    <a-plane rotation="-90 0 0" width="10" height="10" color="#7BC8A4"></a-plane>
-    <a-sky color="#ECECEC"></a-sky>
-  </a-scene>
-</body>
+  <head>
+    <title>Robot Industrial - A-Frame</title>
+    <meta name="description" content="Robot Industrial con primitivas A-Frame">
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+
+      <!--ILUMINACION-->
+      <a-entity light="color: #ffffff; intensity: 0.7; type: ambient;"></a-entity>
+      <a-entity light="color: #ffffff; intensity: 1.0; type: directional;" position="3 8 4"></a-entity>
+
+      <!--CIELO-->
+      <a-sky color="#C8E8F5"></a-sky>
+
+      <!--PISO-->
+      <a-plane position="-2 0 -7" rotation="-90 0 0" width="18" height="14" color="#CCCCCC"></a-plane>
+
+      <!--CAJA AMARILLA IZQUIERDA-->
+      <a-box position="-3.2 0.55 -5" width="1.8" height="1.1" depth="1.5" color="#F5C000"></a-box>
+
+      <!--BASE DEL ROBOT-->
+      <a-box position="0 0.45 -5" width="1.8" height="0.9" depth="1.8" color="#1B5E20"></a-box>
+      <a-cylinder position="0 0.92 -5" radius="0.75" height="0.16" color="#1A237E"></a-cylinder>
+
+      <<!--ESLABON AZUL-->
+      <a-box position="0 1.7 -5" width="0.30" height="1.4" depth="0.30" color="#1976D2"></a-box>
+
+      <!--ESFERA AZUL-->
+      <a-sphere position="0 2.4 -5" radius="0.27" color="#1976D2"></a-sphere>
+
+      <!--ESLABON NARANJA-->
+     <a-box
+     position="0.7 2.85 -5"
+     width="1.664"
+     height="0.25"
+     depth="0.25"
+     rotation="0 0 33"
+     color="#F5A800">
+     </a-box>
+
+      <!--ESFERA NARANJA-->
+      <a-sphere position="1.4 3.3 -5" radius="0.27" color="#F57C00"></a-sphere>
+
+      <!--ESLABON AZUL-->
+      <a-box position="1.4 2.425 -5" width="0.28" height="1.75" depth="0.28" color="#1976D2"></a-box>
+
+      <!--PINZA GRIS-->
+      <a-box position="1.4 1.22 -5" width="0.52" height="0.65" depth="0.40" color="#546E7A"></a-box>
+      <a-box position="1.22 0.78 -5" width="0.13" height="0.44" depth="0.17" color="#37474F"></a-box>
+      <a-box position="1.58 0.78 -5" width="0.13" height="0.44" depth="0.17" color="#37474F"></a-box>
+
+      <!--CAJITA MORADA-->
+      <a-box position="-6.24 1.25 -3.2"  width="0.12" height="2.5" depth="1.2" color="#996998"></a-box>
+      <a-box position="-4.76 1.25 -3.2"  width="0.12" height="2.5" depth="1.2" color="#996998"></a-box>
+      <a-box position="-5.5 2.5 -3.2"  width="1.68" height="0.12" depth="1.2" color="#996998"></a-box>
+      
+      <!--CUERPO AMARILLO CINTA 1-->
+      <a-box position="-4.88 0.55 -6.0" width="0.12" height="0.45" depth="7.2" color="#F5C000"></a-box>
+      <!--CUERPO AMARILLO CINTA 1-->
+      <a-box position="-6.12 0.55 -5.425" width="0.12" height="0.45" depth="8.35" color="#F5C000"></a-box>
+      <!-- BASE AMARILLA CINTA 1 -->
+      <a-box position="-5.5 0.30 -5.425"  width="1.4"  height="0.05" depth="8.35" color="#E8A000"></a-box>
+      <!-- CINTA NEGRA_1-->
+      <a-box position="-5.5 0.77 -6.0"  width="1.15" height="0.07" depth="7.0" color="#222222"></a-box>
+      
+      <!-- LÍNEAS GRISES CINTA 1-->
+      <a-box position="-5.5 0.82 -3.0"  width="1.15" height="0.03" depth="0.07" color="#555555"></a-box>
+      <a-box position="-5.5 0.82 -4.0"  width="1.15" height="0.03" depth="0.07" color="#555555"></a-box>
+      <a-box position="-5.5 0.82 -5.0"  width="1.15" height="0.03" depth="0.07" color="#555555"></a-box>
+      <a-box position="-5.5 0.82 -6.0"  width="1.15" height="0.03" depth="0.07" color="#555555"></a-box>
+      <a-box position="-5.5 0.82 -7.0"  width="1.15" height="0.03" depth="0.07" color="#555555"></a-box>
+      <a-box position="-5.5 0.82 -8.0"  width="1.15" height="0.03" depth="0.07" color="#555555"></a-box>
+      <a-box position="-5.5 0.82 -9.0"  width="1.15" height="0.03" depth="0.07" color="#555555"></a-box>
+
+      <!--RODILLOS CINTA 1-->
+      <a-cylinder position="-5.5 0.77 -2.55" radius="0.10" height="1.15" rotation="0 0 90" color="#888888"></a-cylinder>
+      <a-cylinder position="-5.5 0.77 -9.45" radius="0.10" height="1.15" rotation="0 0 90" color="#888888"></a-cylinder>
+
+      <!-- CAJITA CINTA 1-->
+      <a-box position="-5.5 1.18 -6.0"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-5.5 1.55 -6.0"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <!-- CUERPO AMARILLO CINTA 2-->
+      <a-box position="-1.94 0.55 -1.19" width="8.51" height="0.45" depth="0.12" color="#F5C000"></a-box>
+      <!-- CUERPO AMARILLO CINTA 2-->
+      <a-box position="-1.245 0.55 -2.46" width="7.12" height="0.45" depth="0.12" color="#F5C000"></a-box>
+      <!-- CINTA NEGRA_2-->
+      <a-box position="-2.575 0.77 -1.825"  width="7.0" height="0.07" depth="1.15" color="#222222"></a-box>
+
+      <!-- LÍNEAS GRISES CINTA 2-->
+      <a-box position="0.89 0.82 -1.825"  width="0.07" height="0.03" depth="1.15" color="#555555"></a-box>
+      <a-box position="-0.11 0.82 -1.825"  width="0.07" height="0.03" depth="1.15" color="#555555"></a-box>
+      <a-box position="-1.11 0.82 -1.825"  width="0.07" height="0.03" depth="1.15" color="#555555"></a-box>
+      <a-box position="-2.11 0.82 -1.825"  width="0.07" height="0.03" depth="1.15" color="#555555"></a-box>
+      <a-box position="-3.11 0.82 -1.825"  width="0.07" height="0.03" depth="1.15" color="#555555"></a-box>
+      <a-box position="-4.11 0.82 -1.825"  width="0.07" height="0.03" depth="1.15" color="#555555"></a-box>
+
+      <!--RODILLOS CINTA 2-->
+      <a-cylinder position="-4.88 0.77 -1.825" radius="0.10" height="1.15" rotation="90 0 0" color="#888888"></a-cylinder>
+      <a-cylinder position="2.22 0.77 -1.825" radius="0.10" height="1.15" rotation="90 0 0" color="#888888"></a-cylinder>
+
+      <!-- CAJITA CINTA 2-->
+      <a-box position="1.62 1.18 -1.825"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="1.62 1.55 -1.825"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="-1.62 1.18 -1.825"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-1.62 1.55 -1.825"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="-5.5 1.18 -1.825"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-5.5 1.55 -1.825"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <!--MESA BLANCO OSCURO INICIO-->
+      <a-box position="1.62 0.55 -1.825"  width="1.39" height="0.48" depth="1.15" color="#737373"></a-box>
+
+      <!--ESTAMPADO-->
+      <a-box position="1.62 1.5 -2.58"  width="0.2" height="2.0" depth="0.12" color="#FFC65D"></a-box>
+      <a-box position="1.62 1.5 -1.07"  width="0.2" height="2.0" depth="0.12" color="#FFC65D"></a-box>
+      <a-box position="1.62 2.56 -1.825"  width="0.8" height="0.12" depth="1.63" color="#FFC65D"></a-box>
+      <a-cylinder position="1.62 2.1 -1.825" radius="0.1" height="0.8" color="#222222"></a-cylinder>
+      <a-box position="1.62 1.64 -1.825"  width="1.39" height="0.12" depth="1.39" color="#222222"></a-box>
+
+      <!--MESA VERDE-->
+      <a-box position="3.6 0.55 -5" width="2.0" height="1.1" depth="1.8" color="#1B5E20"></a-box>
+      <a-box position="3.6 1.12 -5" width="2.1" height="0.12" depth="1.9" color="#1B5E20"></a-box>
+      <a-box position="3.6 1.28 -5" width="0.65" height="0.2" depth="0.5" color="#B0BEC5"></a-box>
+
+      <!-- CAJITAS DECORACION-->
+      <a-box position="-8 0.55 -5"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-8 0.92 -5"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="-9 0.55 -5"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-9 0.92 -5"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="-8 0.55 -4"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-8 0.92 -4"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="-9 0.55 -4"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-9 0.92 -4"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="-1 0.55 -9"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-1 0.92 -9"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+      
+      <a-box position="-1 0.55 -10"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="-1 0.92 -10"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="0 0.55 -9"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="0 0.92 -9"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+      
+      <a-box position="0 0.55 -10"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="0 0.92 -10"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-box position="1 0.55 -9"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="1 0.92 -9"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+      
+      <a-box position="1 0.55 -10"  width="0.7" height="0.7" depth="0.65" color="#D4943A"></a-box>
+      <a-box position="1 0.92 -10"  width="0.71" height="0.04" depth="0.66" color="#B87A2A"></a-box>
+
+      <a-entity position="-1 0.4 -7.5" rotation="0 180 0">
+        <a-camera look-controls wasd-controls></a-camera>
+      </a-entity>
+
+    </a-scene>
+  </body>
 </html>
