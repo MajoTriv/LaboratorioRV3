@@ -1,36 +1,228 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-<script src="https://unpkg.com/aframe-ar-hit-test-component/dist/aframe-ar-hit-test-component.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AR WebXR</title>
+  <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: transparent; }
+    #enter-ar-btn {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 14px 32px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border: 2px solid white;
+      color: white;
+      font-size: 18px;
+      border-radius: 50px;
+      cursor: pointer;
+      z-index: 999;
+      font-family: sans-serif;
+    }
+    #msg {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: sans-serif;
+      font-size: 14px;
+      background: rgba(0,0,0,0.5);
+      padding: 8px 16px;
+      border-radius: 20px;
+      z-index: 999;
+    }
+  </style>
 </head>
-
 <body>
 
+<div id="msg">Toca "Entrar en AR" para comenzar</div>
+<button id="enter-ar-btn">📷 Entrar en AR</button>
+
 <a-scene
-webxr="requiredFeatures: hit-test, local-floor"
-renderer="colorManagement: true"
-vr-mode-ui="enabled: true"
-ar-hit-test="target: #reticle"
+  id="scene"
+  embedded
+  renderer="alpha: true; colorManagement: true; logarithmicDepthBuffer: true;"
+  webxr="requiredFeatures: hit-test,local-floor; optionalFeatures: dom-overlay; overlayElement: #ui"
+  vr-mode-ui="enabled: false"
+  background="color: transparent"
 >
 
-<!-- cursor para colocar objetos -->
-<a-entity id="reticle"
-geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-material="color: green"
-rotation="-90 0 0"
-visible="false">
-</a-entity>
+  <!-- Luz ambiental para que los objetos se vean bien -->
+  <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
+  <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
 
-<!-- objeto que aparecerá en el mundo real -->
-<a-box position="0 0 -1" rotation="0 45 0" color="#4CC3D9"></a-box>
+  <!-- Reticula / cursor de hit-test -->
+  <a-entity
+    id="reticle"
+    geometry="primitive: ring; radiusInner: 0.06; radiusOuter: 0.1"
+    material="color: #00ff88; shader: flat; opacity: 0.8"
+    rotation="-90 0 0"
+    visible="false"
+  ></a-entity>
 
-<a-sphere position="2 1 -4" radius="1" color="#EF2D5E"></a-sphere>
+  <!-- Contenedor donde se colocan los objetos al tocar -->
+  <a-entity id="objects-container"></a-entity>
 
-<a-cylinder position="-2 1 -4" radius="0.5" height="1.5"
-color="#FFC65D"></a-cylinder>
+  <!-- Cámara con cursor -->
+  <a-entity camera look-controls="enabled: false">
+    <a-cursor fuse="false" visible="false"></a-cursor>
+  </a-entity>
 
 </a-scene>
+
+<script>
+  const scene = document.getElementById('scene');
+  const reticle = document.getElementById('reticle');
+  const container = document.getElementById('objects-container');
+  const btn = document.getElementById('enter-ar-btn');
+  const msg = document.getElementById('msg');
+
+  let xrSession = null;
+  let xrRefSpace = null;
+  let hitTestSource = null;
+  let hitTestSourceRequested = false;
+  let reticleMatrix = null;
+  let isARActive = false;
+
+  // Shapes to cycle through
+  const shapes = ['box', 'sphere', 'cylinder', 'cone', 'torus'];
+  const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8B94', '#6C5CE7'];
+  let shapeIndex = 0;
+
+  btn.addEventListener('click', async () => {
+    if (!navigator.xr) {
+      msg.textContent = '❌ WebXR no soportado en este dispositivo';
+      return;
+    }
+
+    const supported = await navigator.xr.isSessionSupported('immersive-ar');
+    if (!supported) {
+      msg.textContent = '❌ AR no soportado en este dispositivo';
+      return;
+    }
+
+    btn.style.display = 'none';
+    scene.enterAR();
+  });
+
+  scene.addEventListener('enter-vr', () => {
+    if (scene.is('ar-mode')) {
+      isARActive = true;
+      msg.textContent = '✅ AR activo — Mueve la cámara y toca para colocar objetos';
+      // Hacer fondo transparente
+      document.querySelector('canvas').style.background = 'transparent';
+      document.body.style.background = 'transparent';
+    }
+  });
+
+  scene.addEventListener('exit-vr', () => {
+    isARActive = false;
+    hitTestSource = null;
+    hitTestSourceRequested = false;
+    reticle.setAttribute('visible', false);
+    btn.style.display = 'block';
+    msg.textContent = 'Toca "Entrar en AR" para comenzar';
+  });
+
+  // Hit-test usando el sistema de WebXR
+  scene.addEventListener('loaded', () => {
+    const renderer = scene.renderer;
+    const origRender = renderer.xr.getSession;
+
+    scene.addEventListener('enter-vr', async () => {
+      if (!scene.is('ar-mode')) return;
+
+      const session = renderer.xr.getSession();
+      if (!session) return;
+
+      xrSession = session;
+
+      // Solicitar espacio de referencia para hit-test
+      try {
+        const viewerSpace = await session.requestReferenceSpace('viewer');
+        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+        xrRefSpace = await session.requestReferenceSpace('local-floor');
+
+        msg.textContent = '📱 Apunta al suelo y toca para colocar objetos';
+
+        // Loop de render
+        renderer.setAnimationLoop((time, frame) => {
+          if (!frame) return;
+
+          if (hitTestSource) {
+            const hitTestResults = frame.getHitTestResults(hitTestSource);
+            if (hitTestResults.length > 0) {
+              const hit = hitTestResults[0];
+              const pose = hit.getPose(xrRefSpace);
+              if (pose) {
+                reticle.setAttribute('visible', true);
+                const m = pose.transform.matrix;
+                reticle.object3D.position.set(m[12], m[13], m[14]);
+                reticle.object3D.updateMatrix();
+                reticleMatrix = pose.transform.matrix;
+              }
+            } else {
+              reticle.setAttribute('visible', false);
+              reticleMatrix = null;
+            }
+          }
+        });
+
+        // Colocar objeto al tocar
+        session.addEventListener('select', placeObject);
+
+      } catch (e) {
+        console.error('Hit-test error:', e);
+        msg.textContent = '⚠️ Hit-test no disponible: ' + e.message;
+      }
+    });
+  });
+
+  function placeObject() {
+    if (!reticleMatrix) return;
+
+    const x = reticleMatrix[12];
+    const y = reticleMatrix[13];
+    const z = reticleMatrix[14];
+
+    const shape = shapes[shapeIndex % shapes.length];
+    const color = colors[shapeIndex % colors.length];
+    shapeIndex++;
+
+    const el = document.createElement('a-entity');
+
+    if (shape === 'box') {
+      el.setAttribute('geometry', 'primitive: box; width: 0.2; height: 0.2; depth: 0.2');
+    } else if (shape === 'sphere') {
+      el.setAttribute('geometry', 'primitive: sphere; radius: 0.12');
+    } else if (shape === 'cylinder') {
+      el.setAttribute('geometry', 'primitive: cylinder; radius: 0.1; height: 0.25');
+    } else if (shape === 'cone') {
+      el.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.12; height: 0.25');
+    } else if (shape === 'torus') {
+      el.setAttribute('geometry', 'primitive: torus; radius: 0.12; radiusTubular: 0.03');
+    }
+
+    el.setAttribute('material', `color: ${color}; metalness: 0.3; roughness: 0.5`);
+    el.setAttribute('position', `${x} ${y} ${z}`);
+    el.setAttribute('animation', 'property: rotation; to: 0 360 0; dur: 3000; loop: true; easing: linear');
+
+    container.appendChild(el);
+
+    // Pequeña animación de aparición
+    el.setAttribute('scale', '0.01 0.01 0.01');
+    setTimeout(() => {
+      el.setAttribute('animation__scale', 'property: scale; to: 1 1 1; dur: 300; easing: easeOutBack');
+    }, 50);
+
+    msg.textContent = `✨ ${shape} colocado! Toca de nuevo para más`;
+  }
+</script>
 
 </body>
 </html>
