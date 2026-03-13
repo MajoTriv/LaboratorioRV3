@@ -3,226 +3,238 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AR WebXR</title>
+  <title>AR WebXR Scene</title>
   <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; background: transparent; }
-    #enter-ar-btn {
+    body {
+      margin: 0;
+      background: transparent;
+    }
+
+    #ar-button {
       position: fixed;
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 14px 32px;
+      padding: 14px 28px;
       background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(10px);
       border: 2px solid white;
       color: white;
-      font-size: 18px;
+      font-size: 16px;
+      font-family: sans-serif;
       border-radius: 50px;
       cursor: pointer;
-      z-index: 999;
-      font-family: sans-serif;
+      backdrop-filter: blur(8px);
+      z-index: 9999;
     }
-    #msg {
+
+    #info {
       position: fixed;
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
       color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
       font-family: sans-serif;
       font-size: 14px;
-      background: rgba(0,0,0,0.5);
-      padding: 8px 16px;
-      border-radius: 20px;
-      z-index: 999;
+      z-index: 9999;
+      text-align: center;
+      max-width: 300px;
     }
   </style>
 </head>
 <body>
 
-<div id="msg">Toca "Entrar en AR" para comenzar</div>
-<button id="enter-ar-btn">📷 Entrar en AR</button>
+  <div id="info">Presiona "Iniciar AR" y apunta tu cámara al suelo</div>
+  <button id="ar-button">Iniciar AR</button>
 
-<a-scene
-  id="scene"
-  embedded
-  renderer="alpha: true; colorManagement: true; logarithmicDepthBuffer: true;"
-  webxr="requiredFeatures: hit-test,local-floor; optionalFeatures: dom-overlay; overlayElement: #ui"
-  vr-mode-ui="enabled: false"
-  background="color: transparent"
->
+  <a-scene
+    id="scene"
+    embedded
+    renderer="alpha: true; colorManagement: true; logarithmicDepthBuffer: true;"
+    webxr="requiredFeatures: hit-test,local-floor; optionalFeatures: dom-overlay; overlayElement: #ui-overlay"
+    vr-mode-ui="enabled: false"
+    background="color: transparent"
+  >
+    <!-- Reticle (indicador de superficie) -->
+    <a-entity
+      id="reticle"
+      geometry="primitive: ring; radiusInner: 0.04; radiusOuter: 0.06"
+      material="color: #00ff88; shader: flat; side: double"
+      rotation="-90 0 0"
+      visible="false"
+    ></a-entity>
 
-  <!-- Luz ambiental para que los objetos se vean bien -->
-  <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
-  <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
+    <!-- Objetos 3D (se colocan al tocar la superficie) -->
+    <a-entity id="objects">
+      <!-- vacío al inicio, se agregan al tocar -->
+    </a-entity>
 
-  <!-- Reticula / cursor de hit-test -->
-  <a-entity
-    id="reticle"
-    geometry="primitive: ring; radiusInner: 0.06; radiusOuter: 0.1"
-    material="color: #00ff88; shader: flat; opacity: 0.8"
-    rotation="-90 0 0"
-    visible="false"
-  ></a-entity>
+    <!-- Luz ambiental -->
+    <a-light type="ambient" intensity="1"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
 
-  <!-- Contenedor donde se colocan los objetos al tocar -->
-  <a-entity id="objects-container"></a-entity>
+    <a-camera position="0 0 0"></a-camera>
+  </a-scene>
 
-  <!-- Cámara con cursor -->
-  <a-entity camera look-controls="enabled: false">
-    <a-cursor fuse="false" visible="false"></a-cursor>
-  </a-entity>
+  <div id="ui-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999;">
+    <div id="tap-hint" style="display:none; position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); color:white; padding:10px 20px; border-radius:20px; font-family:sans-serif; font-size:14px;">
+      Toca la superficie para colocar objetos
+    </div>
+  </div>
 
-</a-scene>
+  <script>
+    const scene = document.getElementById('scene');
+    const reticle = document.getElementById('reticle');
+    const objects = document.getElementById('objects');
+    const arButton = document.getElementById('ar-button');
+    const tapHint = document.getElementById('tap-hint');
+    const info = document.getElementById('info');
 
-<script>
-  const scene = document.getElementById('scene');
-  const reticle = document.getElementById('reticle');
-  const container = document.getElementById('objects-container');
-  const btn = document.getElementById('enter-ar-btn');
-  const msg = document.getElementById('msg');
+    let xrSession = null;
+    let hitTestSource = null;
+    let hitTestSourceRequested = false;
+    let reticleVisible = false;
+    let currentHitMatrix = null;
 
-  let xrSession = null;
-  let xrRefSpace = null;
-  let hitTestSource = null;
-  let hitTestSourceRequested = false;
-  let reticleMatrix = null;
-  let isARActive = false;
+    // Colores para los objetos
+    const shapes = [
+      { type: 'box', color: '#4CC3D9', size: '0.15 0.15 0.15' },
+      { type: 'sphere', color: '#EF2D5E', radius: '0.1' },
+      { type: 'cylinder', color: '#FFC65D', radius: '0.08', height: '0.2' },
+    ];
+    let shapeIndex = 0;
 
-  // Shapes to cycle through
-  const shapes = ['box', 'sphere', 'cylinder', 'cone', 'torus'];
-  const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8B94', '#6C5CE7'];
-  let shapeIndex = 0;
+    // Iniciar AR
+    arButton.addEventListener('click', async () => {
+      if (!navigator.xr) {
+        alert('Tu navegador no soporta WebXR. Usa Chrome en Android.');
+        return;
+      }
 
-  btn.addEventListener('click', async () => {
-    if (!navigator.xr) {
-      msg.textContent = '❌ WebXR no soportado en este dispositivo';
-      return;
-    }
+      const supported = await navigator.xr.isSessionSupported('immersive-ar');
+      if (!supported) {
+        alert('AR no está disponible en este dispositivo/navegador.');
+        return;
+      }
 
-    const supported = await navigator.xr.isSessionSupported('immersive-ar');
-    if (!supported) {
-      msg.textContent = '❌ AR no soportado en este dispositivo';
-      return;
-    }
-
-    btn.style.display = 'none';
-    scene.enterAR();
-  });
-
-  scene.addEventListener('enter-vr', () => {
-    if (scene.is('ar-mode')) {
-      isARActive = true;
-      msg.textContent = '✅ AR activo — Mueve la cámara y toca para colocar objetos';
-      // Hacer fondo transparente
-      document.querySelector('canvas').style.background = 'transparent';
-      document.body.style.background = 'transparent';
-    }
-  });
-
-  scene.addEventListener('exit-vr', () => {
-    isARActive = false;
-    hitTestSource = null;
-    hitTestSourceRequested = false;
-    reticle.setAttribute('visible', false);
-    btn.style.display = 'block';
-    msg.textContent = 'Toca "Entrar en AR" para comenzar';
-  });
-
-  // Hit-test usando el sistema de WebXR
-  scene.addEventListener('loaded', () => {
-    const renderer = scene.renderer;
-    const origRender = renderer.xr.getSession;
-
-    scene.addEventListener('enter-vr', async () => {
-      if (!scene.is('ar-mode')) return;
-
-      const session = renderer.xr.getSession();
-      if (!session) return;
-
-      xrSession = session;
-
-      // Solicitar espacio de referencia para hit-test
       try {
-        const viewerSpace = await session.requestReferenceSpace('viewer');
-        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-        xrRefSpace = await session.requestReferenceSpace('local-floor');
-
-        msg.textContent = '📱 Apunta al suelo y toca para colocar objetos';
-
-        // Loop de render
-        renderer.setAnimationLoop((time, frame) => {
-          if (!frame) return;
-
-          if (hitTestSource) {
-            const hitTestResults = frame.getHitTestResults(hitTestSource);
-            if (hitTestResults.length > 0) {
-              const hit = hitTestResults[0];
-              const pose = hit.getPose(xrRefSpace);
-              if (pose) {
-                reticle.setAttribute('visible', true);
-                const m = pose.transform.matrix;
-                reticle.object3D.position.set(m[12], m[13], m[14]);
-                reticle.object3D.updateMatrix();
-                reticleMatrix = pose.transform.matrix;
-              }
-            } else {
-              reticle.setAttribute('visible', false);
-              reticleMatrix = null;
-            }
-          }
+        xrSession = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['hit-test', 'local-floor'],
+          optionalFeatures: ['dom-overlay'],
+          domOverlay: { root: document.getElementById('ui-overlay') }
         });
 
-        // Colocar objeto al tocar
-        session.addEventListener('select', placeObject);
+        scene.xrSession = xrSession;
+        scene.renderer.xr.setReferenceSpaceType('local-floor');
+        await scene.renderer.xr.setSession(xrSession);
+
+        arButton.style.display = 'none';
+        info.style.display = 'none';
+        tapHint.style.display = 'block';
+
+        xrSession.addEventListener('end', () => {
+          arButton.style.display = 'block';
+          info.style.display = 'block';
+          tapHint.style.display = 'none';
+          hitTestSource = null;
+          hitTestSourceRequested = false;
+          reticle.setAttribute('visible', false);
+        });
+
+        scene.renderer.setAnimationLoop((time, frame) => {
+          onXRFrame(time, frame);
+        });
 
       } catch (e) {
-        console.error('Hit-test error:', e);
-        msg.textContent = '⚠️ Hit-test no disponible: ' + e.message;
+        console.error('Error iniciando AR:', e);
+        alert('No se pudo iniciar AR: ' + e.message);
       }
     });
-  });
 
-  function placeObject() {
-    if (!reticleMatrix) return;
+    async function onXRFrame(time, frame) {
+      if (!frame) return;
 
-    const x = reticleMatrix[12];
-    const y = reticleMatrix[13];
-    const z = reticleMatrix[14];
+      const referenceSpace = scene.renderer.xr.getReferenceSpace();
+      const session = frame.session;
 
-    const shape = shapes[shapeIndex % shapes.length];
-    const color = colors[shapeIndex % colors.length];
-    shapeIndex++;
+      // Solicitar hit-test source
+      if (!hitTestSourceRequested) {
+        hitTestSourceRequested = true;
+        try {
+          const viewerSpace = await session.requestReferenceSpace('viewer');
+          hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+        } catch (e) {
+          console.error('Hit test error:', e);
+        }
+      }
 
-    const el = document.createElement('a-entity');
+      if (hitTestSource) {
+        const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-    if (shape === 'box') {
-      el.setAttribute('geometry', 'primitive: box; width: 0.2; height: 0.2; depth: 0.2');
-    } else if (shape === 'sphere') {
-      el.setAttribute('geometry', 'primitive: sphere; radius: 0.12');
-    } else if (shape === 'cylinder') {
-      el.setAttribute('geometry', 'primitive: cylinder; radius: 0.1; height: 0.25');
-    } else if (shape === 'cone') {
-      el.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.12; height: 0.25');
-    } else if (shape === 'torus') {
-      el.setAttribute('geometry', 'primitive: torus; radius: 0.12; radiusTubular: 0.03');
+        if (hitTestResults.length > 0) {
+          const hit = hitTestResults[0];
+          const pose = hit.getPose(referenceSpace);
+
+          if (pose) {
+            reticle.setAttribute('visible', true);
+            reticleVisible = true;
+
+            const m = pose.transform.matrix;
+            currentHitMatrix = m;
+
+            // Posicionar reticle
+            reticle.object3D.matrix.fromArray(m);
+            reticle.object3D.matrix.decompose(
+              reticle.object3D.position,
+              reticle.object3D.quaternion,
+              reticle.object3D.scale
+            );
+            reticle.object3D.matrixAutoUpdate = false;
+          }
+        } else {
+          reticle.setAttribute('visible', false);
+          reticleVisible = false;
+          currentHitMatrix = null;
+        }
+      }
     }
 
-    el.setAttribute('material', `color: ${color}; metalness: 0.3; roughness: 0.5`);
-    el.setAttribute('position', `${x} ${y} ${z}`);
-    el.setAttribute('animation', 'property: rotation; to: 0 360 0; dur: 3000; loop: true; easing: linear');
+    // Colocar objeto al tocar pantalla
+    document.addEventListener('touchstart', (e) => {
+      if (!reticleVisible || !currentHitMatrix) return;
 
-    container.appendChild(el);
+      const shape = shapes[shapeIndex % shapes.length];
+      shapeIndex++;
 
-    // Pequeña animación de aparición
-    el.setAttribute('scale', '0.01 0.01 0.01');
-    setTimeout(() => {
-      el.setAttribute('animation__scale', 'property: scale; to: 1 1 1; dur: 300; easing: easeOutBack');
-    }, 50);
+      const pos = reticle.object3D.position;
 
-    msg.textContent = `✨ ${shape} colocado! Toca de nuevo para más`;
-  }
-</script>
+      let entity;
+      if (shape.type === 'box') {
+        entity = document.createElement('a-box');
+        entity.setAttribute('width', '0.15');
+        entity.setAttribute('height', '0.15');
+        entity.setAttribute('depth', '0.15');
+      } else if (shape.type === 'sphere') {
+        entity = document.createElement('a-sphere');
+        entity.setAttribute('radius', '0.1');
+      } else {
+        entity = document.createElement('a-cylinder');
+        entity.setAttribute('radius', '0.08');
+        entity.setAttribute('height', '0.2');
+      }
 
+      entity.setAttribute('color', shape.color);
+      entity.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+      entity.setAttribute('shadow', 'cast: true; receive: true');
+
+      // Animación de aparición
+      entity.setAttribute('animation__appear', 'property: scale; from: 0 0 0; to: 1 1 1; dur: 300; easing: easeOutBack');
+
+      objects.appendChild(entity);
+    });
+  </script>
 </body>
 </html>
